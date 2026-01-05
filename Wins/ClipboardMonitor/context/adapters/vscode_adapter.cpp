@@ -73,7 +73,8 @@ bool VSCodeAdapter::CanHandle(const std::wstring& processName,
     return lowerProcessName == L"code.exe" ||
            lowerProcessName == L"cursor.exe" ||
            lowerProcessName == L"code-insiders.exe" ||
-           lowerProcessName == L"vscodium.exe";
+           lowerProcessName == L"vscodium.exe" ||
+           lowerProcessName == L"antigravity.exe";  // Claude Code
 }
 
 std::shared_ptr<ContextData> VSCodeAdapter::GetContext(const SourceInfo& source)
@@ -179,9 +180,10 @@ void VSCodeAdapter::ParseWindowTitle(const std::wstring& windowTitle,
                                     bool& isModified)
 {
     // Window title format:
-    // "● filename.ext - Project Name - Visual Studio Code" (modified)
-    // "filename.ext - Project Name - Visual Studio Code" (saved)
-    // "● filename.ext - Visual Studio Code" (no project)
+    // VS Code: "● filename.ext - Project Name - Visual Studio Code" (modified)
+    // VS Code: "filename.ext - Project Name - Visual Studio Code" (saved)
+    // VS Code: "● filename.ext - Visual Studio Code" (no project)
+    // Antigravity: "ProjectName - Antigravity - filename.ext" (different format!)
 
     fileName.clear();
     projectName.clear();
@@ -204,12 +206,25 @@ void VSCodeAdapter::ParseWindowTitle(const std::wstring& windowTitle,
         }
     }
 
+    // Special handling for Antigravity (Claude Code)
+    // Format: "ProjectName - Antigravity - filename.ext"
+    size_t antigravityPos = title.find(L" - Antigravity - ");
+    if (antigravityPos != std::wstring::npos) {
+        projectName = title.substr(0, antigravityPos);
+        fileName = title.substr(antigravityPos + 17);  // Skip " - Antigravity - "
+        DEBUG_LOG("VSCodeAdapter: Antigravity format detected - project: " + 
+                  Utils::WideToUtf8(projectName) + ", file: " + Utils::WideToUtf8(fileName));
+        return;
+    }
+
+    // Standard VS Code format: "filename.ext - ProjectName - EditorName"
     // Find " - Visual Studio Code" or " - Cursor" suffix
     std::vector<std::wstring> suffixes = {
         L" - Visual Studio Code",
         L" - Cursor",
         L" - VSCodium",
-        L" - Code - Insiders"
+        L" - Code - Insiders",
+        L" - Antigravity"  // Fallback for simpler Antigravity titles
     };
 
     size_t suffixPos = std::wstring::npos;

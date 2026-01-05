@@ -186,9 +186,10 @@ std::vector<std::wstring> NotionAdapter::GetBreadcrumbs(HWND hwnd, UIAutomationH
 
                         // Filter out empty or very long text (probably not a breadcrumb)
                         if (!text.empty() && text.length() < 100) {
-                            // Filter out common UI elements
+                            // Filter out common UI elements and accessibility elements
                             if (text != L"Back" && text != L"Forward" &&
                                 text != L"Share" && text != L"Updates" &&
+                                text != L"Skip to content" &&  // Accessibility skip link
                                 text.find(L"http") == std::wstring::npos) {
                                 breadcrumbs.push_back(text);
                             }
