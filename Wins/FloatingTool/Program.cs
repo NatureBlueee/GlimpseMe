@@ -1,7 +1,9 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace FloatingTool
@@ -19,6 +21,8 @@ namespace FloatingTool
         private static extern bool SetForegroundWindow(IntPtr hWnd);
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+        [DllImport("user32.dll")]
+        private static extern uint RegisterWindowMessage(string lpString);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT { public int X, Y; }
@@ -27,6 +31,9 @@ namespace FloatingTool
         private const uint MOD_ALT = 0x0001;
         private const uint VK_Q = 0x51;
         private const int WM_HOTKEY = 0x0312;
+
+        // IPC message from C++ ClipboardMonitor
+        private static uint WM_GLIMPSEME_SHOW_FLOATING = 0;
 
         // DWM 常量
         private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
@@ -53,6 +60,12 @@ namespace FloatingTool
         private string selectedReaction = null;
         private Timer fadeTimer;
         private float currentOpacity = 0f;
+        private JsonElement? currentEntry = null;
+
+        // 数据目录路径
+        private static readonly string AppDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "ClipboardMonitor");
 
         public FloatingToolForm()
         {
@@ -107,11 +120,11 @@ namespace FloatingTool
             // 绘制窗口
             this.Paint += Form_Paint;
 
-            // 注册快捷键
-            if (!RegisterHotKey(this.Handle, HOTKEY_ID, MOD_ALT, VK_Q))
-            {
-                MessageBox.Show("Cannot register hotkey Alt+Q", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            // 注册 IPC 消息（与 C++ ClipboardMonitor 通信）
+            WM_GLIMPSEME_SHOW_FLOATING = RegisterWindowMessage("WM_GLIMPSEME_SHOW_FLOATING");
+
+            // 注册快捷键（备用）
+            RegisterHotKey(this.Handle, HOTKEY_ID, MOD_ALT, VK_Q);
         }
 
         private void EnableRoundedCorners()
@@ -187,14 +200,81 @@ namespace FloatingTool
 
         private void SaveAndClose()
         {
-            string comment = inputField.Text;
+            string note = inputField.Text;
             bool selectAll = chkSelectAll.Checked;
-            Console.WriteLine($"Reaction: {selectedReaction ?? "none"}, Comment: {comment}, SelectAll: {selectAll}");
+
+            // 保存标注到 clipboard_history.json
+            if (currentEntry.HasValue && (!string.IsNullOrEmpty(selectedReaction) || !string.IsNullOrEmpty(note)))
+            {
+                SaveAnnotation(selectedReaction, note, selectAll);
+            }
             HideWindow();
+        }
+
+        private void SaveAnnotation(string reaction, string note, bool selectAll)
+        {
+            try
+            {
+                string historyPath = Path.Combine(AppDataPath, "clipboard_history.json");
+                string timestamp = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz");
+
+                // 构建带标注的条目
+                var entry = currentEntry.Value;
+                string entryJson = entry.GetRawText();
+
+                // 在 JSON 末尾的 } 前插入 annotation
+                int lastBrace = entryJson.LastIndexOf('}');
+                string annotationJson = $",\n    \"annotation\": {{\n" +
+                    $"      \"reaction\": \"{reaction ?? ""}\",\n" +
+                    $"      \"note\": \"{EscapeJson(note)}\",\n" +
+                    $"      \"is_highlight\": true,\n" +
+                    $"      \"triggered_by_hotkey\": true\n" +
+                    $"    }}";
+                if (selectAll)
+                    annotationJson += $",\n    \"full_context\": \"select_all\"";
+
+                string newEntry = entryJson.Substring(0, lastBrace) + annotationJson + "\n  }";
+
+                // 追加到历史文件
+                AppendToHistory(historyPath, newEntry, timestamp);
+            }
+            catch { }
+        }
+
+        private void AppendToHistory(string path, string entry, string timestamp)
+        {
+            // 简单追加：读取现有文件，在 entries 数组末尾添加新条目
+            if (File.Exists(path))
+            {
+                string content = File.ReadAllText(path);
+                int entriesEnd = content.LastIndexOf(']');
+                if (entriesEnd > 0)
+                {
+                    // 检查是否有现有条目
+                    string before = content.Substring(0, entriesEnd).TrimEnd();
+                    string comma = before.EndsWith("}") ? ",\n" : "\n";
+                    string newContent = before + comma + entry + "\n]\n}\n";
+                    File.WriteAllText(path, newContent);
+                    return;
+                }
+            }
+            // 创建新文件
+            string json = $"{{\n\"version\": \"1.0\",\n\"generated\": \"{timestamp}\",\n\"entries\": [\n{entry}\n]\n}}\n";
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, json);
+        }
+
+        private string EscapeJson(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
         }
 
         private void ShowAtCursor()
         {
+            // 读取 C++ 写入的临时文件
+            LoadCurrentEntry();
+
             if (GetCursorPos(out POINT p))
             {
                 Rectangle screen = Screen.FromPoint(new Point(p.X, p.Y)).WorkingArea;
@@ -220,6 +300,20 @@ namespace FloatingTool
             }
         }
 
+        private void LoadCurrentEntry()
+        {
+            try
+            {
+                string tempPath = Path.Combine(AppDataPath, "current_entry.json");
+                if (File.Exists(tempPath))
+                {
+                    string json = File.ReadAllText(tempPath);
+                    currentEntry = JsonDocument.Parse(json).RootElement;
+                }
+            }
+            catch { currentEntry = null; }
+        }
+
         private void HideWindow()
         {
             fadeTimer.Stop();
@@ -228,7 +322,11 @@ namespace FloatingTool
 
         protected override void WndProc(ref Message m)
         {
+            // 处理 Alt+Q 快捷键（备用）
             if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID)
+                ShowAtCursor();
+            // 处理来自 C++ ClipboardMonitor 的 IPC 消息
+            else if (WM_GLIMPSEME_SHOW_FLOATING != 0 && m.Msg == WM_GLIMPSEME_SHOW_FLOATING)
                 ShowAtCursor();
             base.WndProc(ref m);
         }

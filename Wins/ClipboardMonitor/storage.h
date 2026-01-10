@@ -15,7 +15,10 @@ public:
     
     // Save a clipboard entry
     bool SaveEntry(const ClipboardEntry& entry);
-    
+
+    // Write entry to temp file for IPC with C# FloatingTool
+    bool WriteTempEntry(const ClipboardEntry& entry);
+
     // Get all entries (optional, for future use)
     std::vector<ClipboardEntry> GetEntries() const;
     

@@ -36,6 +36,9 @@ static ClipboardEntry g_lastEntry;
 static HHOOK g_keyboardHook = nullptr;
 static DWORD g_lastCtrlCTime = 0;
 
+// Inter-process communication with C# FloatingTool
+static UINT WM_GLIMPSEME_SHOW_FLOATING = 0;
+
 // Forward declarations
 void CreateTrayIcon(HWND hwnd, HINSTANCE hInstance);
 void RemoveTrayIcon();
@@ -56,9 +59,20 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                 DWORD now = GetTickCount();
                 
                 if (g_lastCtrlCTime > 0 && (now - g_lastCtrlCTime) < 500) {
-                    // Second Ctrl+C within 500ms - trigger floating window
-                    DEBUG_LOG("Ctrl+C+C detected!");
+                    // Second Ctrl+C within 500ms - broadcast to C# FloatingTool
+                    DEBUG_LOG("Ctrl+C+C detected! Broadcasting to FloatingTool...");
                     g_lastCtrlCTime = 0;
+
+                    // Write last entry to temp file for C# to read
+                    if (!g_lastEntry.content.empty()) {
+                        g_storage.WriteTempEntry(g_lastEntry);
+                    }
+
+                    // Broadcast to all windows (C# FloatingTool will receive this)
+                    if (WM_GLIMPSEME_SHOW_FLOATING != 0) {
+                        PostMessage(HWND_BROADCAST, WM_GLIMPSEME_SHOW_FLOATING, 0, 0);
+                    }
+                    // Also trigger local floating window as fallback
                     PostMessage(g_monitor.GetWindowHandle(), WM_TRIGGER_FLOATING, 0, 0);
                 } else {
                     // First Ctrl+C - just record time
@@ -77,7 +91,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     (void)nCmdShow;
     
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    
+
+    // Register message for IPC with C# FloatingTool
+    WM_GLIMPSEME_SHOW_FLOATING = RegisterWindowMessageW(L"WM_GLIMPSEME_SHOW_FLOATING");
+
     std::wstring appDataPath = Utils::GetAppDataPath();
     DebugLog::Instance().Initialize(appDataPath);
     DEBUG_LOG("Starting GlimpseMe...");

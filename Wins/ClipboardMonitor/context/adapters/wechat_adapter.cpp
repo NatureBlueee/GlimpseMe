@@ -194,8 +194,8 @@ std::wstring WeChatAdapter::DetermineChatType(const std::wstring& chatName)
 {
     // Heuristic rules for determining chat type:
 
-    // 1. Group chat indicators
-    if (chatName.find(L"群") != std::wstring::npos ||
+    // 1. Group chat indicators (U+7FA4 = 群)
+    if (chatName.find(L"\u7FA4") != std::wstring::npos ||
         chatName.find(L"Group") != std::wstring::npos ||
         chatName.find(L"group") != std::wstring::npos) {
         return L"group";

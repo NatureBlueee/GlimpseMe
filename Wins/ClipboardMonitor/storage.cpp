@@ -320,3 +320,14 @@ std::vector<ClipboardEntry> Storage::GetEntries() const {
   // Not implemented - would require JSON parsing
   return std::vector<ClipboardEntry>();
 }
+
+bool Storage::WriteTempEntry(const ClipboardEntry& entry) {
+  std::wstring tempPath = m_directory + L"\\current_entry.json";
+  std::ofstream file(tempPath, std::ios::out | std::ios::trunc);
+  if (!file.is_open()) {
+    return false;
+  }
+  file << EntryToJson(entry);
+  file.close();
+  return true;
+}
