@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -10,9 +11,15 @@ namespace FloatingTool
 {
     public class DashboardForm : Form
     {
+        [DllImport("dwmapi.dll")]
+        static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+        private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+        private const int DWMWCP_ROUND = 2;
+
         // 温暖明亮主题色彩
         static readonly Color BgWarmIvory = Color.FromArgb(255, 248, 240);
         static readonly Color CardBg = Color.FromArgb(255, 252, 248);
+        static readonly Color CardHover = Color.FromArgb(255, 255, 252);
         static readonly Color BtnLikeColor = Color.FromArgb(255, 177, 153);
         static readonly Color BtnMehColor = Color.FromArgb(232, 228, 255);
         static readonly Color BtnDislikeColor = Color.FromArgb(232, 245, 227);
@@ -20,8 +27,10 @@ namespace FloatingTool
         static readonly Color TextPrimary = Color.FromArgb(58, 54, 50);
         static readonly Color TextSecondary = Color.FromArgb(107, 101, 96);
         static readonly Color BorderColor = Color.FromArgb(255, 228, 214);
+        static readonly Color InputBorder = Color.FromArgb(240, 220, 210);
+        static readonly Color InputBorderFocus = Color.FromArgb(255, 169, 119);
 
-        private TextBox searchBox;
+        private ModernSearchBox searchBox;
         private FlowLayoutPanel filterPanel;
         private Panel listPanel;
         private List<ClipboardEntry> entries = new List<ClipboardEntry>();
@@ -43,6 +52,12 @@ namespace FloatingTool
             this.Font = new Font("Microsoft YaHei", 10);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
+
+            // Windows 11 圆角
+            try {
+                int value = DWMWCP_ROUND;
+                DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref value, sizeof(int));
+            } catch { }
         }
 
         private void InitializeControls()
@@ -51,7 +66,7 @@ namespace FloatingTool
             var header = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = BgWarmIvory };
             var titleLabel = new Label
             {
-                Text = "📋 GlimpseMe",
+                Text = "\U0001F4CB GlimpseMe",
                 Font = new Font("Microsoft YaHei", 16, FontStyle.Bold),
                 ForeColor = TextPrimary,
                 Location = new Point(20, 18),
@@ -59,31 +74,22 @@ namespace FloatingTool
             };
             header.Controls.Add(titleLabel);
 
-            // 搜索框
-            searchBox = new TextBox
+            // 现代搜索框
+            searchBox = new ModernSearchBox
             {
-                Location = new Point(200, 18),
-                Size = new Size(200, 28),
-                Font = new Font("Microsoft YaHei", 10),
-                BackColor = CardBg,
-                ForeColor = TextPrimary,
-                BorderStyle = BorderStyle.FixedSingle
+                Location = new Point(200, 14),
+                Size = new Size(220, 32),
+                PlaceholderText = "搜索..."
             };
             searchBox.TextChanged += (s, e) => RefreshList();
             header.Controls.Add(searchBox);
 
-            // 设置按钮
-            var settingsBtn = new Button
+            // 现代设置按钮
+            var settingsBtn = new ModernIconButton("\u2699")
             {
-                Text = "⚙️",
-                Location = new Point(540, 15),
-                Size = new Size(36, 32),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = CardBg,
-                ForeColor = TextPrimary,
-                Cursor = Cursors.Hand
+                Location = new Point(540, 14),
+                Size = new Size(36, 32)
             };
-            settingsBtn.FlatAppearance.BorderColor = BorderColor;
             settingsBtn.Click += (s, e) => new SettingsForm().ShowDialog();
             header.Controls.Add(settingsBtn);
 
@@ -93,14 +99,14 @@ namespace FloatingTool
             filterPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
-                Height = 45,
-                Padding = new Padding(15, 8, 15, 8),
+                Height = 50,
+                Padding = new Padding(15, 10, 15, 10),
                 BackColor = BgWarmIvory
             };
-            AddFilterChip("全部", "all", true);
-            AddFilterChip("👍 喜欢", "like", false);
-            AddFilterChip("😐 一般", "meh", false);
-            AddFilterChip("👎 不喜欢", "dislike", false);
+            AddFilterChip("\u5168\u90E8", "all", true);
+            AddFilterChip("\U0001F44D \u559C\u6B22", "like", false);
+            AddFilterChip("\U0001F610 \u4E00\u822C", "meh", false);
+            AddFilterChip("\U0001F44E \u4E0D\u559C\u6B22", "dislike", false);
             this.Controls.Add(filterPanel);
 
             // 列表区域
@@ -116,40 +122,11 @@ namespace FloatingTool
 
         private void AddFilterChip(string text, string filter, bool selected)
         {
-            var chip = new Label
-            {
-                Text = text,
-                AutoSize = false,
-                Size = new Size(80, 28),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Microsoft YaHei", 9),
-                BackColor = selected ? AccentColor : CardBg,
-                ForeColor = selected ? Color.White : TextPrimary,
-                Cursor = Cursors.Hand,
-                Margin = new Padding(4),
-                Tag = filter
-            };
-            chip.Paint += (s, e) => {
-                var rect = new Rectangle(0, 0, chip.Width - 1, chip.Height - 1);
-                using (var path = CreateRoundedRect(rect, 14))
-                {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (var brush = new SolidBrush(chip.BackColor))
-                        e.Graphics.FillPath(brush, path);
-                    using (var pen = new Pen(BorderColor))
-                        e.Graphics.DrawPath(pen, path);
-                }
-                TextRenderer.DrawText(e.Graphics, chip.Text, chip.Font, rect, chip.ForeColor,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            };
-            chip.Click += (s, e) => {
+            var chip = new ModernChip(text, filter, selected);
+            chip.ChipClick += (s, e) => {
                 currentFilter = filter;
-                foreach (Label c in filterPanel.Controls)
-                {
-                    c.BackColor = c.Tag.ToString() == filter ? AccentColor : CardBg;
-                    c.ForeColor = c.Tag.ToString() == filter ? Color.White : TextPrimary;
-                    c.Invalidate();
-                }
+                foreach (ModernChip c in filterPanel.Controls)
+                    c.SetSelected(c.Filter == filter);
                 RefreshList();
             };
             filterPanel.Controls.Add(chip);
@@ -226,32 +203,19 @@ namespace FloatingTool
 
         private Panel CreateCard(ClipboardEntry entry, int y)
         {
-            var card = new Panel
+            var card = new ModernCard
             {
                 Location = new Point(5, y),
-                Size = new Size(listPanel.Width - 50, 80),
-                BackColor = CardBg,
-                Cursor = Cursors.Hand
-            };
-            card.Paint += (s, e) => {
-                var rect = new Rectangle(0, 0, card.Width - 1, card.Height - 1);
-                using (var path = CreateRoundedRect(rect, 12))
-                {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (var brush = new SolidBrush(CardBg))
-                        e.Graphics.FillPath(brush, path);
-                    using (var pen = new Pen(BorderColor))
-                        e.Graphics.DrawPath(pen, path);
-                }
+                Size = new Size(listPanel.Width - 50, 80)
             };
 
             // 反应图标
             string emoji = entry.Reaction switch
             {
-                "like" => "👍",
-                "meh" => "😐",
-                "dislike" => "👎",
-                _ => "📝"
+                "like" => "\U0001F44D",
+                "meh" => "\U0001F610",
+                "dislike" => "\U0001F44E",
+                _ => "\U0001F4DD"
             };
             Color emojiColor = entry.Reaction switch
             {
@@ -261,21 +225,13 @@ namespace FloatingTool
                 _ => CardBg
             };
 
-            var emojiLabel = new Label
-            {
-                Text = emoji,
-                Font = new Font("Segoe UI Emoji", 16),
-                Location = new Point(12, 12),
-                Size = new Size(36, 36),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = emojiColor
-            };
+            var emojiLabel = new Label { Size = new Size(36, 36), Location = new Point(12, 12) };
             emojiLabel.Paint += (s, e) => {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 using (var brush = new SolidBrush(emojiColor))
                     e.Graphics.FillEllipse(brush, 0, 0, 35, 35);
-                TextRenderer.DrawText(e.Graphics, emoji, emojiLabel.Font,
-                    new Rectangle(0, 0, 36, 36), Color.Black,
+                TextRenderer.DrawText(e.Graphics, emoji, new Font("Segoe UI Emoji", 14),
+                    new Rectangle(0, 0, 36, 36), TextPrimary,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             };
             card.Controls.Add(emojiLabel);
@@ -283,7 +239,7 @@ namespace FloatingTool
             // 内容预览
             var contentLabel = new Label
             {
-                Text = $"\"{TruncateText(entry.Content, 60)}\"",
+                Text = $"\"{TruncateText(entry.Content, 55)}\"",
                 Font = new Font("Microsoft YaHei", 10),
                 ForeColor = TextPrimary,
                 Location = new Point(56, 10),
@@ -292,12 +248,12 @@ namespace FloatingTool
             };
             card.Controls.Add(contentLabel);
 
-            // 评论（如果有）
+            // 评论
             if (!string.IsNullOrEmpty(entry.Comment))
             {
                 var commentLabel = new Label
                 {
-                    Text = $"💬 \"{entry.Comment}\"",
+                    Text = $"\U0001F4AC \"{entry.Comment}\"",
                     Font = new Font("Microsoft YaHei", 9, FontStyle.Italic),
                     ForeColor = TextSecondary,
                     Location = new Point(56, 32),
@@ -310,7 +266,7 @@ namespace FloatingTool
             // 来源信息
             var sourceLabel = new Label
             {
-                Text = $"{entry.SourceApp} · {entry.SourceDetail} · {GetRelativeTime(entry.Timestamp)}",
+                Text = $"{entry.SourceApp} \u00B7 {entry.SourceDetail} \u00B7 {GetRelativeTime(entry.Timestamp)}",
                 Font = new Font("Microsoft YaHei", 8),
                 ForeColor = TextSecondary,
                 Location = new Point(56, 54),
@@ -397,7 +353,7 @@ namespace FloatingTool
 
         public SettingsForm()
         {
-            this.Text = "设置";
+            this.Text = "\u8BBE\u7F6E";
             this.Size = new Size(400, 350);
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = BgWarmIvory;
@@ -406,76 +362,213 @@ namespace FloatingTool
             this.MinimizeBox = false;
 
             int y = 20;
+            AddSettingRow("\u89E6\u53D1\u6D6E\u7A97\u5FEB\u6377\u952E", "Alt + Q", ref y);
+            AddSettingRow("\u4E3B\u9898", "\u8DDF\u968F\u7CFB\u7EDF", ref y);
+            AddToggleRow("\u5F00\u673A\u81EA\u542F\u52A8", true, ref y);
+            AddSettingRow("\u5B58\u50A8\u4F4D\u7F6E", "%APPDATA%\\ClipboardMonitor", ref y);
 
-            // 快捷键设置
-            AddSettingRow("触发浮窗快捷键", "Alt + Q", ref y);
-
-            // 主题设置
-            AddSettingRow("主题", "跟随系统", ref y);
-
-            // 开机自启
-            AddToggleRow("开机自启动", true, ref y);
-
-            // 存储位置
-            AddSettingRow("存储位置", "%APPDATA%\\ClipboardMonitor", ref y);
-
-            // 导出按钮
-            var exportBtn = new Button
-            {
-                Text = "导出数据",
-                Location = new Point(20, y + 20),
-                Size = new Size(100, 32),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = CardBg,
-                ForeColor = TextPrimary
-            };
-            exportBtn.FlatAppearance.BorderColor = BorderColor;
+            var exportBtn = new ModernIconButton("\u5BFC\u51FA") { Location = new Point(20, y + 20), Size = new Size(100, 32) };
             this.Controls.Add(exportBtn);
         }
 
         private void AddSettingRow(string label, string value, ref int y)
         {
-            var lbl = new Label
-            {
-                Text = label,
-                Location = new Point(20, y),
-                Size = new Size(150, 24),
-                ForeColor = TextPrimary,
-                Font = new Font("Microsoft YaHei", 10)
-            };
-            var val = new Label
-            {
-                Text = value,
-                Location = new Point(180, y),
-                Size = new Size(180, 24),
-                ForeColor = Color.Gray,
-                Font = new Font("Microsoft YaHei", 10),
-                TextAlign = ContentAlignment.MiddleRight
-            };
-            this.Controls.Add(lbl);
-            this.Controls.Add(val);
+            this.Controls.Add(new Label { Text = label, Location = new Point(20, y), Size = new Size(150, 24), ForeColor = TextPrimary, Font = new Font("Microsoft YaHei", 10) });
+            this.Controls.Add(new Label { Text = value, Location = new Point(180, y), Size = new Size(180, 24), ForeColor = Color.Gray, Font = new Font("Microsoft YaHei", 10), TextAlign = ContentAlignment.MiddleRight });
             y += 45;
         }
 
         private void AddToggleRow(string label, bool isOn, ref int y)
         {
-            var lbl = new Label
-            {
-                Text = label,
-                Location = new Point(20, y),
-                Size = new Size(150, 24),
-                ForeColor = TextPrimary,
-                Font = new Font("Microsoft YaHei", 10)
-            };
-            var toggle = new CheckBox
-            {
-                Checked = isOn,
-                Location = new Point(340, y),
-                Size = new Size(20, 24)
-            };
-            this.Controls.Add(lbl);
-            this.Controls.Add(toggle);
+            this.Controls.Add(new Label { Text = label, Location = new Point(20, y), Size = new Size(150, 24), ForeColor = TextPrimary, Font = new Font("Microsoft YaHei", 10) });
+            this.Controls.Add(new CheckBox { Checked = isOn, Location = new Point(340, y), Size = new Size(20, 24) });
             y += 45;
+        }
+    }
+
+    // 现代搜索框
+    public class ModernSearchBox : Control
+    {
+        private TextBox innerBox;
+        private bool isFocused;
+        public string PlaceholderText { get; set; } = "";
+        public new string Text { get => innerBox.Text; set => innerBox.Text = value; }
+        public new event EventHandler TextChanged { add => innerBox.TextChanged += value; remove => innerBox.TextChanged -= value; }
+
+        static readonly Color InputBg = Color.FromArgb(255, 252, 250);
+        static readonly Color InputBorder = Color.FromArgb(240, 220, 210);
+        static readonly Color InputBorderFocus = Color.FromArgb(255, 169, 119);
+
+        public ModernSearchBox()
+        {
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
+            innerBox = new TextBox { BorderStyle = BorderStyle.None, BackColor = InputBg, Font = new Font("Microsoft YaHei", 10), Location = new Point(10, 7) };
+            innerBox.GotFocus += (s, e) => { isFocused = true; Invalidate(); };
+            innerBox.LostFocus += (s, e) => { isFocused = false; Invalidate(); };
+            Controls.Add(innerBox);
+        }
+
+        protected override void OnResize(EventArgs e) { base.OnResize(e); innerBox.Size = new Size(Width - 20, Height - 14); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            using (var path = GetRoundedPath(rect, 8))
+            {
+                using (var brush = new SolidBrush(InputBg)) e.Graphics.FillPath(brush, path);
+                using (var pen = new Pen(isFocused ? InputBorderFocus : InputBorder, isFocused ? 2 : 1)) e.Graphics.DrawPath(pen, path);
+            }
+            if (string.IsNullOrEmpty(innerBox.Text) && !isFocused)
+                TextRenderer.DrawText(e.Graphics, PlaceholderText, innerBox.Font, new Rectangle(10, 7, Width - 20, Height - 14), Color.FromArgb(180, 175, 170), TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+        }
+
+        private GraphicsPath GetRoundedPath(Rectangle rect, int r)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, r * 2, r * 2, 180, 90);
+            path.AddArc(rect.Right - r * 2, rect.Y, r * 2, r * 2, 270, 90);
+            path.AddArc(rect.Right - r * 2, rect.Bottom - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    // 现代图标按钮
+    public class ModernIconButton : Control
+    {
+        private string text;
+        private bool isHovered;
+        static readonly Color CardBg = Color.FromArgb(255, 252, 248);
+        static readonly Color CardHover = Color.FromArgb(255, 248, 242);
+        static readonly Color BorderColor = Color.FromArgb(255, 228, 214);
+
+        public ModernIconButton(string text) { this.text = text; Cursor = Cursors.Hand; SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true); }
+
+        protected override void OnMouseEnter(EventArgs e) { isHovered = true; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { isHovered = false; Invalidate(); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            using (var path = GetRoundedPath(rect, 8))
+            {
+                using (var brush = new SolidBrush(isHovered ? CardHover : CardBg)) e.Graphics.FillPath(brush, path);
+                using (var pen = new Pen(BorderColor)) e.Graphics.DrawPath(pen, path);
+            }
+            TextRenderer.DrawText(e.Graphics, text, new Font("Segoe UI Emoji", 12), rect, Color.FromArgb(58, 54, 50), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        private GraphicsPath GetRoundedPath(Rectangle rect, int r)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, r * 2, r * 2, 180, 90);
+            path.AddArc(rect.Right - r * 2, rect.Y, r * 2, r * 2, 270, 90);
+            path.AddArc(rect.Right - r * 2, rect.Bottom - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    // 现代筛选芯片
+    public class ModernChip : Control
+    {
+        public string Filter { get; }
+        private string text;
+        private bool isSelected, isHovered;
+        public event EventHandler ChipClick;
+
+        static readonly Color CardBg = Color.FromArgb(255, 252, 248);
+        static readonly Color CardHover = Color.FromArgb(255, 248, 242);
+        static readonly Color AccentColor = Color.FromArgb(255, 169, 119);
+        static readonly Color BorderColor = Color.FromArgb(255, 228, 214);
+
+        public ModernChip(string text, string filter, bool selected)
+        {
+            this.text = text; Filter = filter; isSelected = selected;
+            Size = new Size(85, 30); Margin = new Padding(4); Cursor = Cursors.Hand;
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
+        }
+
+        public void SetSelected(bool sel) { isSelected = sel; Invalidate(); }
+        protected override void OnMouseEnter(EventArgs e) { isHovered = true; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { isHovered = false; Invalidate(); }
+        protected override void OnClick(EventArgs e) { base.OnClick(e); ChipClick?.Invoke(this, e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            var bgColor = isSelected ? AccentColor : (isHovered ? CardHover : CardBg);
+            var fgColor = isSelected ? Color.White : Color.FromArgb(58, 54, 50);
+            using (var path = GetRoundedPath(rect, Height / 2))
+            {
+                using (var brush = new SolidBrush(bgColor)) e.Graphics.FillPath(brush, path);
+                if (!isSelected) using (var pen = new Pen(BorderColor)) e.Graphics.DrawPath(pen, path);
+            }
+            TextRenderer.DrawText(e.Graphics, text, new Font("Microsoft YaHei", 9), rect, fgColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        private GraphicsPath GetRoundedPath(Rectangle rect, int r)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, r * 2, r * 2, 180, 90);
+            path.AddArc(rect.Right - r * 2, rect.Y, r * 2, r * 2, 270, 90);
+            path.AddArc(rect.Right - r * 2, rect.Bottom - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    // 现代卡片（带悬停效果）
+    public class ModernCard : Panel
+    {
+        private bool isHovered;
+        private int shadowOffset = 2;
+        static readonly Color CardBg = Color.FromArgb(255, 252, 248);
+        static readonly Color CardHover = Color.FromArgb(255, 255, 252);
+        static readonly Color BorderColor = Color.FromArgb(255, 228, 214);
+
+        public ModernCard()
+        {
+            Cursor = Cursors.Hand;
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
+            BackColor = Color.Transparent;
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { isHovered = true; shadowOffset = 4; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { isHovered = false; shadowOffset = 2; Invalidate(); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            // 阴影
+            var shadowRect = new Rectangle(shadowOffset, shadowOffset, Width - shadowOffset - 1, Height - shadowOffset - 1);
+            using (var shadowPath = GetRoundedPath(shadowRect, 12))
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(isHovered ? 25 : 15, 120, 80, 60)))
+                e.Graphics.FillPath(shadowBrush, shadowPath);
+            // 卡片
+            var rect = new Rectangle(0, 0, Width - shadowOffset - 1, Height - shadowOffset - 1);
+            using (var path = GetRoundedPath(rect, 12))
+            {
+                using (var brush = new SolidBrush(isHovered ? CardHover : CardBg)) e.Graphics.FillPath(brush, path);
+                using (var pen = new Pen(BorderColor)) e.Graphics.DrawPath(pen, path);
+            }
+        }
+
+        private GraphicsPath GetRoundedPath(Rectangle rect, int r)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, r * 2, r * 2, 180, 90);
+            path.AddArc(rect.Right - r * 2, rect.Y, r * 2, r * 2, 270, 90);
+            path.AddArc(rect.Right - r * 2, rect.Bottom - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            return path;
         }
     }
 }

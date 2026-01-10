@@ -28,108 +28,136 @@ namespace FloatingTool
         private const uint VK_Q = 0x51;
         private const int WM_HOTKEY = 0x0312;
 
+        // DWM 常量
+        private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+        private const int DWMWCP_ROUND = 2;
+
         // 温暖明亮主题色彩
         static readonly Color BgWarmIvory = Color.FromArgb(255, 248, 240);
-        static readonly Color InputBg = Color.FromArgb(255, 250, 245);
-        static readonly Color BtnLikeColor = Color.FromArgb(255, 177, 153);      // Soft Apricot
-        static readonly Color BtnMehColor = Color.FromArgb(232, 228, 255);       // Pale Periwinkle
-        static readonly Color BtnDislikeColor = Color.FromArgb(232, 245, 227);   // Sage Green
-        static readonly Color AccentColor = Color.FromArgb(255, 169, 119);       // Soft Tangerine
+        static readonly Color InputBg = Color.FromArgb(255, 252, 250);
+        static readonly Color InputBorder = Color.FromArgb(240, 220, 210);
+        static readonly Color InputBorderFocus = Color.FromArgb(255, 169, 119);
+        static readonly Color BtnLikeColor = Color.FromArgb(255, 177, 153);
+        static readonly Color BtnMehColor = Color.FromArgb(232, 228, 255);
+        static readonly Color BtnDislikeColor = Color.FromArgb(232, 245, 227);
+        static readonly Color AccentColor = Color.FromArgb(255, 169, 119);
         static readonly Color TextPrimary = Color.FromArgb(58, 54, 50);
-        static readonly Color TextSecondary = Color.FromArgb(107, 101, 96);
-        static readonly Color BorderColor = Color.FromArgb(255, 228, 214);
+        static readonly Color TextSecondary = Color.FromArgb(140, 135, 130);
+        static readonly Color TextPlaceholder = Color.FromArgb(180, 175, 170);
+        static readonly Color BorderColor = Color.FromArgb(255, 235, 225);
+        static readonly Color ShadowColor = Color.FromArgb(30, 120, 80, 60);
 
-        private TextBox inputField;
+        private ModernTextBox inputField;
         private ReactionButton btnLike, btnMeh, btnDislike;
-        private CheckBox chkSelectAll;
+        private ModernCheckBox chkSelectAll;
         private string selectedReaction = null;
+        private Timer fadeTimer;
+        private float currentOpacity = 0f;
 
         public FloatingToolForm()
         {
             // 窗口基础设置
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.Manual;
-            this.Size = new Size(420, 56);
+            this.Size = new Size(440, 64);
             this.BackColor = BgWarmIvory;
             this.ShowInTaskbar = false;
             this.TopMost = true;
+            this.DoubleBuffered = true;
+            this.Opacity = 0;
 
-            // 圆角窗口
-            this.Region = CreateRoundedRegion(420, 56, 28);
+            // 启用 Windows 11 圆角
+            EnableRoundedCorners();
+
+            // 淡入动画计时器
+            fadeTimer = new Timer { Interval = 16 };
+            fadeTimer.Tick += FadeTimer_Tick;
 
             // 反应按钮
-            btnLike = new ReactionButton("👍", BtnLikeColor);
-            btnLike.Location = new Point(12, 12);
-            btnLike.Click += (s, e) => SelectReaction(btnLike, "喜欢");
+            btnLike = new ReactionButton("\U0001F44D", BtnLikeColor);
+            btnLike.Location = new Point(16, 16);
+            btnLike.Click += (s, e) => SelectReaction(btnLike, "like");
             this.Controls.Add(btnLike);
 
-            btnMeh = new ReactionButton("😐", BtnMehColor);
-            btnMeh.Location = new Point(52, 12);
-            btnMeh.Click += (s, e) => SelectReaction(btnMeh, "一般");
+            btnMeh = new ReactionButton("\U0001F610", BtnMehColor);
+            btnMeh.Location = new Point(56, 16);
+            btnMeh.Click += (s, e) => SelectReaction(btnMeh, "meh");
             this.Controls.Add(btnMeh);
 
-            btnDislike = new ReactionButton("👎", BtnDislikeColor);
-            btnDislike.Location = new Point(92, 12);
-            btnDislike.Click += (s, e) => SelectReaction(btnDislike, "不喜欢");
+            btnDislike = new ReactionButton("\U0001F44E", BtnDislikeColor);
+            btnDislike.Location = new Point(96, 16);
+            btnDislike.Click += (s, e) => SelectReaction(btnDislike, "dislike");
             this.Controls.Add(btnDislike);
 
-            // 输入框
-            inputField = new TextBox();
-            inputField.Location = new Point(140, 14);
-            inputField.Size = new Size(200, 28);
-            inputField.Font = new Font("Microsoft YaHei", 10);
-            inputField.BackColor = InputBg;
-            inputField.ForeColor = TextPrimary;
-            inputField.BorderStyle = BorderStyle.FixedSingle;
-            inputField.Text = "";
-            inputField.GotFocus += (s, e) => { if (inputField.Text == "") inputField.ForeColor = TextPrimary; };
+            // 现代输入框
+            inputField = new ModernTextBox();
+            inputField.Location = new Point(144, 14);
+            inputField.Size = new Size(200, 36);
+            inputField.PlaceholderText = "Write something...";
             inputField.KeyDown += InputField_KeyDown;
             this.Controls.Add(inputField);
 
-            // 全选复选框
-            chkSelectAll = new CheckBox();
-            chkSelectAll.Text = "全选";
-            chkSelectAll.Location = new Point(350, 17);
-            chkSelectAll.Size = new Size(60, 22);
-            chkSelectAll.Font = new Font("Microsoft YaHei", 9);
-            chkSelectAll.ForeColor = TextSecondary;
-            chkSelectAll.FlatStyle = FlatStyle.Flat;
+            // 现代复选框
+            chkSelectAll = new ModernCheckBox();
+            chkSelectAll.Text = "All";
+            chkSelectAll.Location = new Point(356, 20);
+            chkSelectAll.Size = new Size(70, 24);
             this.Controls.Add(chkSelectAll);
 
-            // 绘制边框
+            // 绘制窗口
             this.Paint += Form_Paint;
 
             // 注册快捷键
             if (!RegisterHotKey(this.Handle, HOTKEY_ID, MOD_ALT, VK_Q))
             {
-                MessageBox.Show("无法注册快捷键 Alt+Q", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Cannot register hotkey Alt+Q", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private Region CreateRoundedRegion(int width, int height, int radius)
+        private void EnableRoundedCorners()
         {
-            GraphicsPath path = new GraphicsPath();
-            path.AddArc(0, 0, radius, radius, 180, 90);
-            path.AddArc(width - radius - 1, 0, radius, radius, 270, 90);
-            path.AddArc(width - radius - 1, height - radius - 1, radius, radius, 0, 90);
-            path.AddArc(0, height - radius - 1, radius, radius, 90, 90);
+            try
+            {
+                int value = DWMWCP_ROUND;
+                DwmSetWindowAttribute(this.Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref value, sizeof(int));
+            }
+            catch { }
+        }
+
+        private void FadeTimer_Tick(object sender, EventArgs e)
+        {
+            currentOpacity += 0.12f;
+            if (currentOpacity >= 1f)
+            {
+                currentOpacity = 1f;
+                fadeTimer.Stop();
+            }
+            this.Opacity = EaseOutQuad(currentOpacity);
+        }
+
+        private float EaseOutQuad(float t) => t * (2 - t);
+
+        private GraphicsPath GetRoundedPath(Rectangle rect, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
             path.CloseFigure();
-            return new Region(path);
+            return path;
         }
 
         private void Form_Paint(object sender, PaintEventArgs e)
         {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+
             // 绘制柔和边框
-            using (Pen pen = new Pen(BorderColor, 1))
+            using (var path = GetRoundedPath(rect, 20))
+            using (var pen = new Pen(BorderColor, 1.5f))
             {
-                GraphicsPath path = new GraphicsPath();
-                int r = 28;
-                path.AddArc(0, 0, r, r, 180, 90);
-                path.AddArc(this.Width - r - 1, 0, r, r, 270, 90);
-                path.AddArc(this.Width - r - 1, this.Height - r - 1, r, r, 0, 90);
-                path.AddArc(0, this.Height - r - 1, r, r, 90, 90);
-                path.CloseFigure();
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 e.Graphics.DrawPath(pen, path);
             }
         }
@@ -161,10 +189,7 @@ namespace FloatingTool
         {
             string comment = inputField.Text;
             bool selectAll = chkSelectAll.Checked;
-
-            // TODO: 保存到 ClipboardMonitor
-            Console.WriteLine($"反馈: {selectedReaction ?? "无"}, 评论: {comment}, 全选: {selectAll}");
-
+            Console.WriteLine($"Reaction: {selectedReaction ?? "none"}, Comment: {comment}, SelectAll: {selectAll}");
             HideWindow();
         }
 
@@ -185,13 +210,21 @@ namespace FloatingTool
                 inputField.Text = "";
                 chkSelectAll.Checked = false;
 
+                // 淡入动画
+                currentOpacity = 0f;
+                this.Opacity = 0;
                 this.Show();
                 SetForegroundWindow(this.Handle);
                 inputField.Focus();
+                fadeTimer.Start();
             }
         }
 
-        private void HideWindow() => this.Hide();
+        private void HideWindow()
+        {
+            fadeTimer.Stop();
+            this.Hide();
+        }
 
         protected override void WndProc(ref Message m)
         {
@@ -203,6 +236,7 @@ namespace FloatingTool
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             UnregisterHotKey(this.Handle, HOTKEY_ID);
+            fadeTimer?.Dispose();
             base.OnFormClosing(e);
         }
 
@@ -223,13 +257,16 @@ namespace FloatingTool
         }
     }
 
-    // 自定义圆形反应按钮
+    // 现代圆形反应按钮（带动画效果）
     public class ReactionButton : Control
     {
         private string emoji;
         private Color baseColor;
         private bool isHovered = false;
         private bool isSelected = false;
+        private bool isPressed = false;
+        private float scale = 1f;
+        private Timer animTimer;
 
         public bool IsSelected
         {
@@ -243,8 +280,159 @@ namespace FloatingTool
             this.baseColor = color;
             this.Size = new Size(32, 32);
             this.Cursor = Cursors.Hand;
-            this.DoubleBuffered = true;
-            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
+            this.BackColor = Color.Transparent;
+
+            animTimer = new Timer { Interval = 16 };
+            animTimer.Tick += (s, e) => {
+                float target = isPressed ? 0.9f : (isHovered ? 1.08f : 1f);
+                scale += (target - scale) * 0.3f;
+                if (Math.Abs(scale - target) < 0.01f) { scale = target; animTimer.Stop(); }
+                Invalidate();
+            };
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            int size = (int)(30 * scale);
+            int offset = (32 - size) / 2;
+
+            // 背景色
+            Color fillColor = baseColor;
+            if (isSelected) fillColor = ControlPaint.Light(baseColor, 0.15f);
+            else if (isHovered) fillColor = ControlPaint.Light(baseColor, 0.25f);
+
+            // 绘制阴影（悬停时）
+            if (isHovered && !isPressed)
+            {
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(20, 0, 0, 0)))
+                    e.Graphics.FillEllipse(shadowBrush, offset + 1, offset + 2, size, size);
+            }
+
+            // 绘制圆形背景
+            using (var brush = new SolidBrush(fillColor))
+                e.Graphics.FillEllipse(brush, offset, offset, size - 1, size - 1);
+
+            // 选中状态边框
+            if (isSelected)
+            {
+                using (var pen = new Pen(Color.FromArgb(255, 169, 119), 2.5f))
+                    e.Graphics.DrawEllipse(pen, offset + 1, offset + 1, size - 3, size - 3);
+            }
+
+            // 绘制 emoji
+            using (var font = new Font("Segoe UI Emoji", 13 * scale))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                e.Graphics.DrawString(emoji, font, Brushes.Black, new RectangleF(0, 0, 32, 32), sf);
+            }
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { isHovered = true; animTimer.Start(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { isHovered = false; isPressed = false; animTimer.Start(); base.OnMouseLeave(e); }
+        protected override void OnMouseDown(MouseEventArgs e) { isPressed = true; animTimer.Start(); base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { isPressed = false; animTimer.Start(); base.OnMouseUp(e); }
+
+        protected override void Dispose(bool disposing) { if (disposing) animTimer?.Dispose(); base.Dispose(disposing); }
+    }
+
+    // 现代输入框（圆角、焦点效果）
+    public class ModernTextBox : Control
+    {
+        private TextBox innerBox;
+        private bool isFocused = false;
+        private string placeholderText = "";
+
+        public string Text { get => innerBox.Text; set => innerBox.Text = value; }
+        public string PlaceholderText { get => placeholderText; set { placeholderText = value; Invalidate(); } }
+        public bool Checked => false;
+
+        public new event KeyEventHandler KeyDown { add => innerBox.KeyDown += value; remove => innerBox.KeyDown -= value; }
+
+        public ModernTextBox()
+        {
+            this.Size = new Size(200, 36);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
+
+            innerBox = new TextBox
+            {
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.FromArgb(255, 252, 250),
+                ForeColor = Color.FromArgb(58, 54, 50),
+                Location = new Point(12, 9),
+                Anchor = AnchorStyles.Left | AnchorStyles.Right
+            };
+            innerBox.GotFocus += (s, e) => { isFocused = true; Invalidate(); };
+            innerBox.LostFocus += (s, e) => { isFocused = false; Invalidate(); };
+            innerBox.TextChanged += (s, e) => Invalidate();
+            this.Controls.Add(innerBox);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            innerBox.Width = Width - 24;
+        }
+
+        public new bool Focus() => innerBox.Focus();
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+
+            // 背景
+            using (var path = GetRoundedPath(rect, 10))
+            using (var brush = new SolidBrush(Color.FromArgb(255, 252, 250)))
+                e.Graphics.FillPath(brush, path);
+
+            // 边框
+            Color borderColor = isFocused ? Color.FromArgb(255, 169, 119) : Color.FromArgb(240, 220, 210);
+            float borderWidth = isFocused ? 2f : 1.5f;
+            using (var path = GetRoundedPath(rect, 10))
+            using (var pen = new Pen(borderColor, borderWidth))
+                e.Graphics.DrawPath(pen, path);
+
+            // Placeholder
+            if (string.IsNullOrEmpty(innerBox.Text) && !isFocused && !string.IsNullOrEmpty(placeholderText))
+            {
+                using (var brush = new SolidBrush(Color.FromArgb(180, 175, 170)))
+                using (var font = new Font("Segoe UI", 10))
+                    e.Graphics.DrawString(placeholderText, font, brush, 12, 9);
+            }
+        }
+
+        private GraphicsPath GetRoundedPath(Rectangle rect, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    // 现代复选框
+    public class ModernCheckBox : Control
+    {
+        private bool isChecked = false;
+        private bool isHovered = false;
+
+        public bool Checked { get => isChecked; set { isChecked = value; Invalidate(); } }
+
+        public ModernCheckBox()
+        {
+            this.Size = new Size(70, 24);
+            this.Cursor = Cursors.Hand;
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
             this.BackColor = Color.Transparent;
         }
 
@@ -252,48 +440,57 @@ namespace FloatingTool
         {
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            Color fillColor = baseColor;
-            if (isSelected)
-                fillColor = ControlPaint.Light(baseColor, 0.1f);
-            else if (isHovered)
-                fillColor = ControlPaint.Light(baseColor, 0.3f);
+            int boxSize = 18;
+            var boxRect = new Rectangle(0, (Height - boxSize) / 2, boxSize, boxSize);
 
-            // 绘制圆形背景
-            using (SolidBrush brush = new SolidBrush(fillColor))
-            {
-                e.Graphics.FillEllipse(brush, 0, 0, 31, 31);
-            }
+            // 复选框背景
+            Color boxBg = isChecked ? Color.FromArgb(255, 169, 119) : (isHovered ? Color.FromArgb(255, 245, 240) : Color.White);
+            using (var path = GetRoundedPath(boxRect, 5))
+            using (var brush = new SolidBrush(boxBg))
+                e.Graphics.FillPath(brush, path);
 
-            // 选中状态边框
-            if (isSelected)
+            // 边框
+            Color borderColor = isChecked ? Color.FromArgb(255, 140, 90) : Color.FromArgb(220, 210, 200);
+            using (var path = GetRoundedPath(boxRect, 5))
+            using (var pen = new Pen(borderColor, 1.5f))
+                e.Graphics.DrawPath(pen, path);
+
+            // 勾选标记
+            if (isChecked)
             {
-                using (Pen pen = new Pen(Color.FromArgb(255, 169, 119), 2))
+                using (var pen = new Pen(Color.White, 2.5f))
                 {
-                    e.Graphics.DrawEllipse(pen, 1, 1, 29, 29);
+                    pen.StartCap = pen.EndCap = LineCap.Round;
+                    e.Graphics.DrawLine(pen, boxRect.X + 4, boxRect.Y + boxSize / 2, boxRect.X + 7, boxRect.Bottom - 5);
+                    e.Graphics.DrawLine(pen, boxRect.X + 7, boxRect.Bottom - 5, boxRect.Right - 4, boxRect.Y + 5);
                 }
             }
 
-            // 绘制 emoji
-            using (Font font = new Font("Segoe UI Emoji", 14))
+            // 文字
+            using (var font = new Font("Segoe UI", 9.5f))
+            using (var brush = new SolidBrush(Color.FromArgb(100, 95, 90)))
             {
-                StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                e.Graphics.DrawString(emoji, font, Brushes.Black, new RectangleF(0, 0, 32, 32), sf);
+                var textRect = new Rectangle(boxSize + 6, 0, Width - boxSize - 6, Height);
+                var sf = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
+                e.Graphics.DrawString(Text, font, brush, textRect, sf);
             }
         }
 
-        protected override void OnMouseEnter(EventArgs e)
+        private GraphicsPath GetRoundedPath(Rectangle rect, int radius)
         {
-            isHovered = true;
-            Invalidate();
-            base.OnMouseEnter(e);
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
-        protected override void OnMouseLeave(EventArgs e)
-        {
-            isHovered = false;
-            Invalidate();
-            base.OnMouseLeave(e);
-        }
+        protected override void OnClick(EventArgs e) { isChecked = !isChecked; Invalidate(); base.OnClick(e); }
+        protected override void OnMouseEnter(EventArgs e) { isHovered = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { isHovered = false; Invalidate(); base.OnMouseLeave(e); }
     }
 
     static class Program
