@@ -24,7 +24,6 @@ namespace FloatingTool
         private TextBox searchBox;
         private FlowLayoutPanel filterPanel;
         private Panel listPanel;
-        private VScrollBar scrollBar;
         private List<ClipboardEntry> entries = new List<ClipboardEntry>();
         private string currentFilter = "all";
 

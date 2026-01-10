@@ -303,25 +303,57 @@ namespace FloatingTool
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new GlimpseMeContext());
+        }
+    }
 
+    public class GlimpseMeContext : ApplicationContext
+    {
+        private NotifyIcon trayIcon;
+        private DashboardForm dashboardForm;
+        private FloatingToolForm floatingForm;
+
+        public GlimpseMeContext()
+        {
             // 创建托盘图标
-            var trayIcon = new NotifyIcon
+            trayIcon = new NotifyIcon
             {
-                Icon = SystemIcons.Application,
-                Text = "GlimpseMe",
+                Icon = SystemIcons.Information,
+                Text = "GlimpseMe - Alt+Q 唤起标注",
                 Visible = true
             };
 
             var menu = new ContextMenuStrip();
-            menu.Items.Add("打开主界面", null, (s, e) => new DashboardForm().Show());
+            menu.Items.Add("打开主界面", null, OpenDashboard);
             menu.Items.Add("-");
-            menu.Items.Add("退出", null, (s, e) => { trayIcon.Visible = false; Application.Exit(); });
+            menu.Items.Add("退出", null, ExitApp);
             trayIcon.ContextMenuStrip = menu;
-            trayIcon.DoubleClick += (s, e) => new DashboardForm().Show();
+            trayIcon.Click += (s, e) => {
+                if (((MouseEventArgs)e).Button == MouseButtons.Left)
+                    OpenDashboard(s, e);
+            };
 
             // 启动浮窗（后台监听快捷键）
-            var floatingForm = new FloatingToolForm();
-            Application.Run();
+            floatingForm = new FloatingToolForm();
+        }
+
+        private void OpenDashboard(object sender, EventArgs e)
+        {
+            if (dashboardForm == null || dashboardForm.IsDisposed)
+            {
+                dashboardForm = new DashboardForm();
+            }
+            dashboardForm.Show();
+            dashboardForm.BringToFront();
+            dashboardForm.Activate();
+        }
+
+        private void ExitApp(object sender, EventArgs e)
+        {
+            trayIcon.Visible = false;
+            trayIcon.Dispose();
+            floatingForm?.Close();
+            Application.Exit();
         }
     }
 }
