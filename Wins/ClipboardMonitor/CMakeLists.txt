@@ -15,7 +15,6 @@ set(SOURCES
     main.cpp
     clipboard_monitor.cpp
     storage.cpp
-    floating_window.cpp
     context/async_executor.cpp
     context/context_manager.cpp
     context/adapters/browser_adapter.cpp
@@ -31,7 +30,6 @@ set(HEADERS
     storage.h
     utils.h
     debug_log.h
-    floating_window.h
     context/context_data.h
     context/context_adapter.h
     context/async_executor.h

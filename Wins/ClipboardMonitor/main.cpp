@@ -2,7 +2,6 @@
 #include "storage.h"
 #include "utils.h"
 #include "debug_log.h"
-#include "floating_window.h"
 #include "context/context_manager.h"
 #include "context/adapters/browser_adapter.h"
 #include "context/adapters/wechat_adapter.h"
@@ -14,14 +13,12 @@
 ClipboardMonitor g_monitor;
 Storage g_storage;
 std::shared_ptr<ContextManager> g_contextManager;
-FloatingWindow g_floatingWindow;
 NOTIFYICONDATAW g_nid = {};
 bool g_monitoring = true;
 WNDPROC g_originalWndProc = nullptr;
 
 // Hotkey ID
 #define HOTKEY_QUIT 1
-#define WM_TRIGGER_FLOATING (WM_USER + 100)
 
 // Tray icon menu IDs
 #define ID_TRAY_EXIT    1001
@@ -72,8 +69,6 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                     if (WM_GLIMPSEME_SHOW_FLOATING != 0) {
                         PostMessage(HWND_BROADCAST, WM_GLIMPSEME_SHOW_FLOATING, 0, 0);
                     }
-                    // Also trigger local floating window as fallback
-                    PostMessage(g_monitor.GetWindowHandle(), WM_TRIGGER_FLOATING, 0, 0);
                 } else {
                     // First Ctrl+C - just record time
                     g_lastCtrlCTime = now;
@@ -124,30 +119,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         return 1;
     }
     DEBUG_LOG("Clipboard monitor initialized");
-
-    if (!g_floatingWindow.Initialize(hInstance)) {
-        MessageBoxW(NULL, L"Failed to initialize floating window!", L"GlimpseMe Error", MB_ICONERROR);
-        return 1;
-    }
-    DEBUG_LOG("Floating window initialized");
-
-    // Floating window callback - save annotation
-    g_floatingWindow.SetCallback([](const AnnotationData& data) {
-        if (data.cancelled) {
-            DEBUG_LOG("Cancelled");
-            return;
-        }
-
-        if (!data.reaction.empty() || !data.note.empty()) {
-            ClipboardEntry entry = g_lastEntry;
-            entry.annotation.reaction = data.reaction;
-            entry.annotation.note = data.note;
-            entry.annotation.isHighlight = true;
-            entry.annotation.triggeredByHotkey = true;
-            g_storage.SaveEntry(entry);
-            DEBUG_LOG("Saved: " + data.reaction);
-        }
-    });
 
     g_monitor.SetContextManager(g_contextManager);
 
@@ -205,21 +176,12 @@ LRESULT CALLBACK TrayWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         return 0;
     }
-    
-    // Ctrl+C+C trigger
-    if (msg == WM_TRIGGER_FLOATING) {
-        if (!g_floatingWindow.IsVisible() && !g_lastEntry.content.empty()) {
-            DEBUG_LOG("Showing floating window");
-            g_floatingWindow.ShowAtCursor();
-        }
-        return 0;
-    }
-    
+
     if (msg == WM_HOTKEY && wParam == HOTKEY_QUIT) {
         g_monitor.Stop();
         return 0;
     }
-    
+
     if (g_originalWndProc) {
         return CallWindowProcW(g_originalWndProc, hwnd, msg, wParam, lParam);
     }
