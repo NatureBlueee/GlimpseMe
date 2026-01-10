@@ -1,0 +1,3 @@
+D:/Profolio/GlimpseMe/Wins/ClipboardMonitor/build/CMakeFiles/ClipboardMonitor.dir
+D:/Profolio/GlimpseMe/Wins/ClipboardMonitor/build/CMakeFiles/ALL_BUILD.dir
+D:/Profolio/GlimpseMe/Wins/ClipboardMonitor/build/CMakeFiles/ZERO_CHECK.dir

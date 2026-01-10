@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FloatingTool")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fdd3b797a40fa7c5ddff8cc1f2417df0fddb00d0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0c01067ad0e94c23774411677d2a47c959a66ffb")]
 [assembly: System.Reflection.AssemblyProductAttribute("FloatingTool")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FloatingTool")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

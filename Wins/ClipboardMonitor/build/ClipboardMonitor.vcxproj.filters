@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\clipboard_monitor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\storage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\floating_window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\async_executor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\context_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\adapters\browser_adapter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\adapters\wechat_adapter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\adapters\vscode_adapter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\adapters\notion_adapter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\utils\ui_automation_helper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\utils\html_parser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\clipboard_monitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\storage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\debug_log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\floating_window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\context_data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\context_adapter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\async_executor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\context_manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\utils\ui_automation_helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\context\utils\html_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\Profolio\GlimpseMe\Wins\ClipboardMonitor\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{52E4AD97-F047-3169-A438-EB6C71865F2B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{B52EC2D7-AE6B-3B36-929B-780A6A39DE43}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

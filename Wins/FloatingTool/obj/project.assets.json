@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Profolio\\EchoType\\playground\\FloatingTool.csproj",
+      "projectUniqueName": "D:\\Profolio\\GlimpseMe\\Wins\\FloatingTool\\FloatingTool.csproj",
       "projectName": "FloatingTool",
-      "projectPath": "D:\\Profolio\\EchoType\\playground\\FloatingTool.csproj",
+      "projectPath": "D:\\Profolio\\GlimpseMe\\Wins\\FloatingTool\\FloatingTool.csproj",
       "packagesPath": "C:\\Users\\Lenovo\\.nuget\\packages\\",
-      "outputPath": "D:\\Profolio\\EchoType\\playground\\obj\\",
+      "outputPath": "D:\\Profolio\\GlimpseMe\\Wins\\FloatingTool\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Lenovo\\AppData\\Roaming\\NuGet\\NuGet.Config"
