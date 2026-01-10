@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文件为 Claude Code (claude.ai/code) 提供在此代码库中工作的指导。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 项目概述
 
@@ -43,54 +43,46 @@ macOS 版本当前同步执行上下文提取，但由于 Accessibility API 效�
 
 ## 常用开发命令
 
-### macOS (Mac/ClaudeWeb/)
+### macOS
 
 ```bash
-# 编译
 cd Mac/ClaudeWeb
-chmod +x build.sh
-./build.sh
+./build.sh                     # 编译
+./build/GlimpseMac             # 运行
+```
 
-# 运行
-./build/GlimpseMac
-
-# 查看剪贴板历史
-cat ~/Library/Application\ Support/GlimpseMac/clipboard_history.json
-
-# 实时监控
-tail -f ~/Library/Application\ Support/GlimpseMac/clipboard_history.json
-
-# 清理编译产物
-rm -rf build/
+**调试**：
+```bash
+cat ~/Library/Application\ Support/GlimpseMac/clipboard_history.json  # 查看历史
+tail -f ~/Library/Application\ Support/GlimpseMac/clipboard_history.json  # 实时监控
 ```
 
 **环境要求**：macOS 11.0+，Xcode Command Line Tools（`xcode-select --install`）
+**首次运行**需授予辅助功能权限：系统设置 → 隐私与安全性 → 辅助功能
 
-### Windows (Wins/ClipboardMonitor/)
+### Windows
 
+**ClipboardMonitor (C++ 上下文捕获)**：
 ```bash
-# 编译（需要 Visual Studio 2022 Build Tools，MSVC 19.41+）
 cd Wins/ClipboardMonitor
-.\build.bat
-
-# 或使用 CMake 编译
-mkdir build && cd build
-cmake .. && cmake --build . --config Release
-
-# 运行
-.\bin\ClipboardMonitor.exe
-
-# 查看剪贴板历史（PowerShell）
-Get-Content $env:APPDATA\ClipboardMonitor\clipboard_history.json
-
-# 实时监控
-Get-Content $env:APPDATA\ClipboardMonitor\debug.log -Wait -Tail 50
-
-# 清理编译产物
-Remove-Item *.obj, *.exe -Force
+.\build.bat                    # 或 cmake .. && cmake --build . --config Release
+.\bin\ClipboardMonitor.exe     # 运行
 ```
 
-**环境要求**：Windows 10+，MSVC 19.41+（Visual Studio 2022 Build Tools），带 UI Automation 的 Windows SDK
+**FloatingTool (C# .NET 8 标注界面)**：
+```bash
+cd Wins/FloatingTool
+dotnet build -c Release
+# 按 Alt+Q 唤起标注浮窗
+```
+
+**调试**：
+```powershell
+Get-Content $env:APPDATA\ClipboardMonitor\clipboard_history.json  # 查看历史
+Get-Content $env:APPDATA\ClipboardMonitor\debug.log -Wait -Tail 50  # 实时日志
+```
+
+**环境要求**：Windows 10+，MSVC 19.41+，.NET 8 SDK
 
 ## 关键技术模式
 
@@ -167,27 +159,18 @@ Mac/ClaudeWeb/
 
 ### Windows 结构
 ```
-Wins/ClipboardMonitor/
-├── main.cpp                    # 入口点、托盘图标
-├── clipboard_monitor.h/cpp     # 剪贴板监控
-├── storage.h/cpp               # JSON 序列化
-├── utils.h                     # 字符串工具（UTF-8/UTF-16 转换）
-├── debug_log.h                 # 基于文件的日志
-├── context/
-│   ├── context_data.h          # 数据结构（继承层次）
-│   ├── context_adapter.h       # IContextAdapter 接口
-│   ├── context_manager.h/cpp   # 适配器协调器（责任链模式）
-│   ├── async_executor.h/cpp    # 线程池（2 个工作线程）
-│   ├── adapters/
-│   │   ├── browser_adapter.h/cpp
-│   │   ├── wechat_adapter.h/cpp
-│   │   ├── vscode_adapter.h/cpp
-│   │   └── notion_adapter.h/cpp
-│   └── utils/
-│       ├── ui_automation_helper.h/cpp  # Windows UI Automation 封装
-│       └── html_parser.h/cpp           # CF_HTML 格式解析器
-├── CMakeLists.txt
-└── build.bat
+Wins/
+├── ClipboardMonitor/           # C++ 上下文捕获
+│   ├── main.cpp, clipboard_monitor.h/cpp, storage.h/cpp, utils.h
+│   ├── context/
+│   │   ├── context_data.h, context_adapter.h, context_manager.h/cpp
+│   │   ├── async_executor.h/cpp
+│   │   ├── adapters/           # browser, wechat, vscode, notion
+│   │   └── utils/              # ui_automation_helper, html_parser
+│   ├── CMakeLists.txt, build.bat
+└── FloatingTool/               # C# .NET 8 标注界面
+    ├── Program.cs
+    └── FloatingTool.csproj
 ```
 
 ## 各应用的上下文提取
@@ -273,23 +256,6 @@ Wins/ClipboardMonitor/
 - 微信/Notion UI 结构可能在版本间变化（基于启发式的提取）
 - 聊天类型检测是启发式的（非 100% 准确）
 - PowerShell 默认将 UTF-8 JSON 显示为乱码（文件内容正确；使用 `notepad` 或设置控制台编码）
-
-## 未来开发计划
-
-### Phase 2：浏览器扩展集成（Windows）
-- Chrome/Firefox 扩展实现精确的文本选择上下文
-- Native Messaging Host 用于扩展 ↔ ClipboardMonitor 通信
-- 捕获周围文本（选区前后各 200 字符）
-- 当前阻塞点：用户安装门槛、跨浏览器兼容性
-
-### Phase 3：更多适配器
-计划中：Slack、飞书、Obsidian、Excel、PDF 阅读器（Adobe/Foxit）
-
-### Phase 4：配置 UI
-- 查看/搜索剪贴板历史
-- 启用/禁用适配器
-- 调整超时和消息数量
-- 导出/备份数据
 
 ## 设计哲学
 
