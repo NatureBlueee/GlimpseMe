@@ -444,7 +444,7 @@ namespace FloatingTool
         private bool isFocused = false;
         private string placeholderText = "";
 
-        public string Text { get => innerBox.Text; set => innerBox.Text = value; }
+        public new string Text { get => innerBox.Text; set => innerBox.Text = value; }
         public string PlaceholderText { get => placeholderText; set { placeholderText = value; Invalidate(); } }
         public bool Checked => false;
 
