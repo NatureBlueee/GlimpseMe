@@ -303,7 +303,25 @@ namespace FloatingTool
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FloatingToolForm());
+
+            // 创建托盘图标
+            var trayIcon = new NotifyIcon
+            {
+                Icon = SystemIcons.Application,
+                Text = "GlimpseMe",
+                Visible = true
+            };
+
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("打开主界面", null, (s, e) => new DashboardForm().Show());
+            menu.Items.Add("-");
+            menu.Items.Add("退出", null, (s, e) => { trayIcon.Visible = false; Application.Exit(); });
+            trayIcon.ContextMenuStrip = menu;
+            trayIcon.DoubleClick += (s, e) => new DashboardForm().Show();
+
+            // 启动浮窗（后台监听快捷键）
+            var floatingForm = new FloatingToolForm();
+            Application.Run();
         }
     }
 }
