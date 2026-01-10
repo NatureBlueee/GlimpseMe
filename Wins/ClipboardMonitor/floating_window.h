@@ -84,6 +84,16 @@ public:
      */
     bool ProcessMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+    /**
+     * @brief Handle enter key / submit (public for edit control subclassing)
+     */
+    void OnSubmit();
+
+    /**
+     * @brief Handle escape key / cancel (public for edit control subclassing)
+     */
+    void OnCancel();
+
 private:
     // Window procedure
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -93,12 +103,6 @@ private:
 
     // Handle button clicks
     void OnReactionClick(const std::string& reaction);
-
-    // Handle enter key
-    void OnSubmit();
-
-    // Handle escape key
-    void OnCancel();
 
     // Perform select all (Ctrl+A + Ctrl+C)
     void PerformSelectAll();

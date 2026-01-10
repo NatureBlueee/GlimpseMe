@@ -27,6 +27,24 @@ static HFONT g_font = nullptr;
 static HBRUSH g_bgBrush = nullptr;
 static HBRUSH g_editBgBrush = nullptr;
 
+// Edit control subclassing
+static WNDPROC g_originalEditProc = nullptr;
+static FloatingWindow* g_floatingWindowInstance = nullptr;
+
+// Edit control subclass procedure to handle Enter/Esc
+static LRESULT CALLBACK EditSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_KEYDOWN) {
+        if (wParam == VK_RETURN && g_floatingWindowInstance) {
+            g_floatingWindowInstance->OnSubmit();
+            return 0;
+        } else if (wParam == VK_ESCAPE && g_floatingWindowInstance) {
+            g_floatingWindowInstance->OnCancel();
+            return 0;
+        }
+    }
+    return CallWindowProcW(g_originalEditProc, hwnd, msg, wParam, lParam);
+}
+
 FloatingWindow::FloatingWindow()
 {
 }
@@ -145,6 +163,10 @@ void FloatingWindow::CreateControls()
         x, y, 80, 20,
         m_hwnd, (HMENU)(INT_PTR)ID_CHK_SELECTALL, m_hInstance, NULL);
 
+    // Subclass the edit control to handle Enter/Esc keys
+    g_floatingWindowInstance = this;
+    g_originalEditProc = (WNDPROC)SetWindowLongPtrW(m_editNote, GWLP_WNDPROC, (LONG_PTR)EditSubclassProc);
+
     // Apply font to all controls
     if (g_font) {
         SendMessage(m_btnLike, WM_SETFONT, (WPARAM)g_font, TRUE);
@@ -224,6 +246,11 @@ void FloatingWindow::OnReactionClick(const std::string& reaction)
 
 void FloatingWindow::OnSubmit()
 {
+    // Guard against double submit (e.g., Enter key + WM_ACTIVATE both triggering)
+    if (!m_visible) {
+        return;
+    }
+    
     DEBUG_LOG("FloatingWindow: Submit");
 
     // Check if select all is checked

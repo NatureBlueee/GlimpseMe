@@ -18,8 +18,16 @@ struct SourceInfo {
     std::wstring processName;      // e.g., "chrome.exe"
     std::wstring processPath;      // Full path to executable
     std::wstring windowTitle;      // Window title (context)
-    DWORD processId;               // Process ID
-    HWND windowHandle;             // Window handle
+    DWORD processId = 0;           // Process ID
+    HWND windowHandle = nullptr;   // Window handle
+};
+
+// User annotation data
+struct Annotation {
+    std::string reaction;          // "like", "dislike", "neutral", "" (none)
+    std::wstring note;             // User's note/thought
+    bool isHighlight = false;      // true = user actively annotated via hotkey
+    bool triggeredByHotkey = false; // true = triggered by Alt+Q, false = auto-captured
 };
 
 // Clipboard entry data
@@ -31,6 +39,8 @@ struct ClipboardEntry {
     SourceInfo source;             // Source application info
     std::wstring contextUrl;       // URL if available (deprecated, kept for backward compatibility)
     std::shared_ptr<ContextData> contextData;  // Extended context information
+    Annotation annotation;         // User annotation (optional)
+    std::wstring fullContext;      // Full page content if "select all" was checked
 };
 
 // Callback type for clipboard changes

@@ -247,6 +247,29 @@ std::string Storage::EntryToJson(const ClipboardEntry &entry) const {
     json << "    }";
   }
 
+  // Serialize annotation if present
+  if (!entry.annotation.reaction.empty() || !entry.annotation.note.empty() ||
+      entry.annotation.isHighlight || entry.annotation.triggeredByHotkey) {
+    json << ",\n    \"annotation\": {\n";
+    if (!entry.annotation.reaction.empty()) {
+      json << "      \"reaction\": \"" 
+           << Utils::EscapeJson(entry.annotation.reaction) << "\",\n";
+    }
+    if (!entry.annotation.note.empty()) {
+      json << "      \"note\": \"" 
+           << Utils::EscapeJson(Utils::WideToUtf8(entry.annotation.note)) << "\",\n";
+    }
+    json << "      \"is_highlight\": " << (entry.annotation.isHighlight ? "true" : "false") << ",\n";
+    json << "      \"triggered_by_hotkey\": " << (entry.annotation.triggeredByHotkey ? "true" : "false") << "\n";
+    json << "    }";
+  }
+
+  // Serialize full context if present (from "select all" feature)
+  if (!entry.fullContext.empty()) {
+    json << ",\n    \"full_context\": \""
+         << Utils::EscapeJson(Utils::WideToUtf8(entry.fullContext)) << "\"";
+  }
+
   json << "\n  }";
 
   return json.str();

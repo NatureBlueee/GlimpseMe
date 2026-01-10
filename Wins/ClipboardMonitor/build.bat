@@ -43,8 +43,8 @@ echo Compiling ClipboardMonitor...
 if not exist bin mkdir bin
 
 cl.exe /EHsc /std:c++17 /W4 /O2 /DUNICODE /D_UNICODE /utf-8 ^
-    /Fe:bin\ClipboardMonitor.exe ^
-    main.cpp clipboard_monitor.cpp storage.cpp ^
+    /Fe:bin\GlimpseMe.exe ^
+    main.cpp clipboard_monitor.cpp storage.cpp floating_window.cpp ^
     context\async_executor.cpp context\context_manager.cpp ^
     context\adapters\browser_adapter.cpp context\adapters\wechat_adapter.cpp ^
     context\adapters\vscode_adapter.cpp context\adapters\notion_adapter.cpp ^
